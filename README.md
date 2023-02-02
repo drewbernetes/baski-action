@@ -1,10 +1,10 @@
-# Baskio - Build And Scan Kubernetes Images Openstack
+# Baski Action - Build And Scan Kubernetes Images
 
 A composite Action for remotely building an image using
 the [eschercloud-image-builder](https://github.com/eschercloudai/image-builder) repo.
-It uses [Baskio](https://github.com/eschercloudai/baskio) under the hood to build the images and scan them.
+It uses [Baski](https://github.com/eschercloudai/baski) under the hood to build the images and scan them.
 
-The version specified ties in with the Baskio release version.
+The version specified ties in with the Baski release version.
 
 # Scope
 
@@ -67,7 +67,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - id: openstack-image-builder
-        uses: eschercloudai/baskio-action@v0.0.1-beta.3
+        uses: eschercloudai/baski-action@v0.0.1-beta.3
         with:
           os-auth-url: ${{ secrets.os_host }}
           os-username: ${{ secrets.os_user }}
@@ -106,7 +106,7 @@ jobs:
 
 </details>
 
-See [Baskio](https://github.com/eschercloudai/baskio) for variable options.
+See [Baski](https://github.com/eschercloudai/baski) for variable options.
 
 # Usage
 
