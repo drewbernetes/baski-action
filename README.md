@@ -83,8 +83,16 @@ jobs:
           crictl-version: ${{ matrix.version.crictl }}
           k8s-version: ${{ matrix.version.k8s }}
           enable-nvidia-support: ${{ matrix.gpu.enabled }}
-          nvidia-installer-url: ${{ secrets.nvidia_url }}
-          nvidia-driver-version: "510.73.08"
+          nvidia-driver-version: "525.85.05"
+          nvidia-bucket-endpoint: ${{ secrets.nvidia_bucket_endpoint }}
+          nvidia-bucket-name: ${{ secrets.nvidia_bucket_name }}
+          nvidia-bucket-access: ${{ secrets.nvidia_bucket_access }}
+          nvidia-bucket-secret: ${{ secrets.nvidia_bucket_secret }}
+          nvidia-installer-location: "NVIDIA-Linux-x86_64-525.85.05-grid.run"
+          nvidia-tok-location: "client_configuration_token.tok"
+          gridd-feature-type: "4"
+          vault-addr: "${{ secrets.vault_addr }}"
+          vault-token: "${{ secrets.vault_token }}"
           grid-license-server: ${{ secrets.nvidia_grid_license_server }}
           gh-token: ${{ secrets.GITHUB_TOKEN }}
           gh-pages-branch: "gh-pages"
