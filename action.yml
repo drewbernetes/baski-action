@@ -86,6 +86,10 @@ inputs:
     description: 'The Kubernetes version to deploy into the image. Default: \"1.25.3\".'
     required: false
     default: "1.25.3"
+  cni-version:
+    description: 'The Kubernetes CNI version to deploy into the image. Default: \"1.2.0\".'
+    required: false
+    default: "1.2.0"
   extra-debs:
     description: 'A space-separated list of any additional (Debian / Ubuntu) packages to install.  Default is no extra packages.'
     required: false
@@ -215,6 +219,7 @@ runs:
           use-floating-ip: "${{ inputs.use-floating-ip }}"
           floating-ip-network-name: "${{ inputs.floating-ip-network-name }}"
           image-visibility: "${{ inputs.image-visibility }}"
+          cni-version: "${{ inputs.cni-version }}"
           crictl-version: "${{ inputs.crictl-version }}"
           kubernetes-version: "${{ inputs.k8s-version }}"
           extra-debs: "${{ inputs.extra-debs }}"
@@ -259,8 +264,8 @@ runs:
         sign:
           image-id: "${{ steps.build.outputs.new-image-id }}"
           vault:
-            url: "${{ inputs.vault-token }}"
-            token: "${{ inputs.vault-addr }}"
+            url: "${{ inputs.vault-addr }}"
+            token: "${{ inputs.vault-token }}"
         EOF
         ./baski sign image
       shell: bash
