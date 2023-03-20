@@ -60,6 +60,9 @@ inputs:
     description: "The OS to build. Currently supports ubuntu-2004 and ubuntu-2204. Default: \"ubuntu-2204\"."
     required: false
     default: "ubuntu-2204"
+  image-prefix:
+    description: "The prefix to apply to the image name."
+    required: true
   source-image-id:
     description: "The ID of the source image to use for the image build."
     required: true
@@ -130,10 +133,30 @@ inputs:
     description: "The gridd feature type - See https://docs.nvidia.com/license-system/latest/nvidia-license-system-quick-start-guide/index.html#configuring-nls-licensed-client-on-linux for more information."
     required: false
     default: ""
+  image-disk-format:
+    description: "The format of the image on Openstack. Your openstack instance must support this."
+    required: false
+    default: "raw"
   rootfs-uuid:
     description: "The uuid of the root filesystem. Useful when booting bare metal machines in Openstack."
     required: false
     default: ""
+  auto-delete-image:
+    description: "Whether to delete the create image should a CVE check fail."
+    required: false
+    default: "true"
+  skip-cve-check:
+    description: "Whether to run a CVE check after the scan runs. This will cause a pipeline to fail if a vulnerability is found and meets the threshold defined in the two options below."
+    required: false
+    default: "false"
+  max-severity-score:
+    description: "The severity of CVE to check for. 0.1 - 10.0"
+    required: false
+    default: "7.0"
+  max-severity-type:
+    description: "The type of CVE Severity to check for. NONE, LOW, MEDIUM, HIGH and CRITICAL are supported."
+    required: false
+    default: "MEDIUM"
   vault-addr:
     description: "The endpoint address of vault from which the keys will be pulled for signing the image."
     required: false
@@ -196,7 +219,7 @@ runs:
       if: runner.os == 'Linux'
       id: fetch_baski
       env:
-        BASKI_VERSION: "v0.0.4-beta.2"
+        BASKI_VERSION: "v0.0.5-beta.1"
       run: |
         wget -q https://github.com/eschercloudai/baski/releases/download/${BASKI_VERSION}/baski-linux-amd64 -O baski
         chmod +x baski
@@ -211,16 +234,17 @@ runs:
         build:
           verbose: true
           build-os: "${{ inputs.build-os }}"
-          attach-config-drive: ${{ inputs.attach-config-drive }}
+          image-prefix: "${{ inputs.image-prefix }}
           image-repo:  "${{ inputs.image-repo }}"
           network-id: "${{ inputs.network-id }}"
           source-image: "${{ inputs.source-image-id }}"
           flavor-name: "${{ inputs.flavor-name }}"
           use-floating-ip: "${{ inputs.use-floating-ip }}"
           floating-ip-network-name: "${{ inputs.floating-ip-network-name }}"
+          attach-config-drive: ${{ inputs.attach-config-drive }}
           image-visibility: "${{ inputs.image-visibility }}"
-          cni-version: "${{ inputs.cni-version }}"
           crictl-version: "${{ inputs.crictl-version }}"
+          cni-version: "${{ inputs.cni-version }}"
           kubernetes-version: "${{ inputs.k8s-version }}"
           extra-debs: "${{ inputs.extra-debs }}"
           enable-nvidia-support: ${{ inputs.enable-nvidia-support }}
@@ -232,6 +256,7 @@ runs:
           nvidia-installer-location: "${{ inputs.nvidia-installer-location }}"
           nvidia-tok-location: "${{ inputs.nvidia-tok-location }}"
           gridd-feature-type: ${{ inputs.gridd-feature-type }}
+          image-disk-format: "${{ inputs.image-disk-format }}"
           rootfs-uuid: "${{ inputs.rootfs-uuid }}"
         EOF
         ./baski build
@@ -250,9 +275,21 @@ runs:
           flavor-name: "${{ inputs.flavor-name }}"
           network-id: "${{ inputs.network-id }}"
           attach-config-drive: ${{ inputs.attach-config-drive }}
+          auto-delete-image: false ${{ inputs.auto-delete-image }}
+          skip-cve-check: false ${{ inputs.skip-cve-check }}
+          max-severity-score: 7.0 ${{ inputs.max-severity-score }}
+          max-severity-type: MEDIUM ${{ inputs.max-severity-type }}
         EOF
         ./baski scan
       shell: bash
+
+    # Upload the SBOM scan results
+    - name: "Upload required fixes results upon scan fail"
+      uses: actions/upload-artifact@v3
+      if: ${{ failure() && steps.scan.conclusion == 'failure' }}
+      with:
+        name: "required-fixes.json"
+        path: "/tmp/required-fixes.json"
 
     - name: "Sign Image"
       if: runner.os == 'Linux'
