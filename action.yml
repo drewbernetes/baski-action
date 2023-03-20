@@ -137,6 +137,10 @@ inputs:
     description: "The format of the image on Openstack. Your openstack instance must support this."
     required: false
     default: "raw"
+  volume-type:
+    description: "The volume type to use in Openstack."
+    required: false
+    default: ""
   rootfs-uuid:
     description: "The uuid of the root filesystem. Useful when booting bare metal machines in Openstack."
     required: false
@@ -257,6 +261,7 @@ runs:
           nvidia-tok-location: "${{ inputs.nvidia-tok-location }}"
           gridd-feature-type: ${{ inputs.gridd-feature-type }}
           image-disk-format: "${{ inputs.image-disk-format }}"
+          volume-type: "${{ inputs.volume-type }}"
           rootfs-uuid: "${{ inputs.rootfs-uuid }}"
         EOF
         ./baski build
