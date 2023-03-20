@@ -275,10 +275,10 @@ runs:
           flavor-name: "${{ inputs.flavor-name }}"
           network-id: "${{ inputs.network-id }}"
           attach-config-drive: ${{ inputs.attach-config-drive }}
-          auto-delete-image: false ${{ inputs.auto-delete-image }}
-          skip-cve-check: false ${{ inputs.skip-cve-check }}
-          max-severity-score: 7.0 ${{ inputs.max-severity-score }}
-          max-severity-type: MEDIUM ${{ inputs.max-severity-type }}
+          auto-delete-image: ${{ inputs.auto-delete-image }}
+          skip-cve-check: ${{ inputs.skip-cve-check }}
+          max-severity-score: ${{ inputs.max-severity-score }}
+          max-severity-type: ${{ inputs.max-severity-type }}
         EOF
         ./baski scan
       shell: bash
