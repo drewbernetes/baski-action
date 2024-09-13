@@ -1,332 +1,422 @@
-name: 'Openstack Kube Image Builder'
-description: 'Uses an Openstack cloud to build images for Kubernetes using the eschercloudai/image-builder repo.'
+name: 'Build and Scan Kubernetes Images Action'
+author: "Drew Hudson-Viles"
 branding:
   icon: layers
-  color: purple
+  color: blue
+description: |
+  A composite Action for remotely building an image using
+  the [kubernetes-image-builder](https://github.com/kubernetes-sigs/image-builder) repo.
+  It uses [Baski](https://github.com/drewbernetes/baski) under the hood to build the images and scan them.
+
+  When the baski configuration changes, there will be a new release of the action to coincide, otherwise the action will remain compatible.
+
+  # Scope
+
+  ⚠️Currently in beta at the moment.
+
+  # Prerequisites
+  * [Openstack]()./docs/openstack.md
+
+
+  # TODO
+  * Probably loads, but this will do for now!
+
+  # License
+  The scripts and documentation in this project are released under the [Apache v2 License](LICENSE).
 inputs:
-  os-auth-url:
+  task-type:
+    description: "Comma delimited list of Baski tasks to run. build, scan or sign are valid options - you can also use 'all' to signal all of the tasks."
+    default: "all"
+  # Infra config
+  infra-type:
+    description: "openstack is currently supported, kubevirt is in progress"
+    default: "openstack"
+    required: true
+  # OpenStack Credentials
+  openstack-auth-url:
     description: "The authentication endpoint of OpenStack to send requests to."
-    required: true
-  os-username:
+  openstack-username:
     description: "The username to authenticate with - required if not using application credentials."
-    required: false
-  os-password:
+  openstack-password:
     description: "The password to authenticate with - required if not using application credentials."
-    required: false
-  os-application-credential-id:
+  openstack-application-credential-id:
     description: "The application credential id to authenticate with - required if not using username/password combination."
-    required: false
-  os-application-credential-secret:
+  openstack-application-credential-secret:
     description: "The application credential secret to authenticate with - required if not using username/password combination."
-    required: false
-  os-project-name:
+  openstack-project-name:
     description: "The name of the Openstack project."
-    required: true
-  os-project-id:
+  openstack-project-id:
     description: "The ID of the Openstack project."
-    required: true
-  os-project-domain-name:
-    description: "The name of the ProjectDomainName. Default: \"default\"."
-    required: false
-    default: "default"
-  os-user-domain-name:
-    description: "The name of the UserDomainName. Default: \"Default\"."
-    required: false
+  openstack-user-domain-name:
+    description: "The name of the UserDomainName."
     default: "Default"
-  os-region-name:
-    description: "The name of the region to deploy to. Default: \"RegionOne\"."
-    required: false
+  openstack-region:
+    description: "The name of the region to deploy to."
     default: "RegionOne"
-  os-identity-api-version:
-    description: "The Identity API Version for Openstack. Default: \"3\"."
-    required: false
+  openstack-identity-api-version:
+    description: "The Identity API Version for OpenStack."
     default: "3"
-  os-interface:
-    description: "The name of the interface. Default: \"public\"."
-    required: false
+  openstack-interface:
+    description: "The name of the interface."
     default: "public"
-  network-id:
+  # OpenStack Config
+  openstack-network-id:
     description: "The ID of the network to use to use to build the scanning system."
-    required: true
-  attach-config-drive:
-    description: "Whether to enable to config drive in Openstack. Useful if building an instance with an external IP attached. Default: \"false\"."
-    required: false
-    default: "false"
-  image-repo:
-    description: "The to use for building Kubernetes images. Default: \"https://github.com/eschercloudai/image-builder.git\"."
-    required: false
-    default: "https://github.com/eschercloudai/image-builder.git"
-  build-os:
-    description: "The OS to build. Currently supports ubuntu-2004 and ubuntu-2204. Default: \"ubuntu-2204\"."
-    required: false
-    default: "ubuntu-2204"
-  image-prefix:
-    description: "The prefix to apply to the image name."
-    required: true
-  source-image-id:
+  openstack-source-image-id:
     description: "The ID of the source image to use for the image build."
-    required: true
-  flavor-name:
-    description: "The Openstack instance flavor to use to build the image."
-    required: true
-  use-floating-ip:
-    description: "Enable to use floating IPs on the build instance. Default: \"true\"."
-    required: false
+  openstack-flavor-name:
+    description: "The OpenStack instance flavor to use to build the image."
+  openstack-attach-config-drive:
+    description: "Whether to enable to config drive in OpenStack. Useful if building an instance with an external IP attached."
+    default: "false"
+  openstack-use-floating-ip:
+    description: "Enable to use floating IPs on the build instance."
     default: "true"
-  floating-ip-network-name:
-    description: "If using a floating IP configuration, add the network name here to which the floating IP will be acquired from. (Usually the provider network). Default: \"Internet\"."
-    required: false
+  openstack-floating-ip-network-name:
+    description: "If using a floating IP configuration, add the network name here to which the floating IP will be acquired from. (Usually the provider network)."
     default: "Internet"
-  image-visibility:
-    description: "Set the image visibility once it has been created. Usually required admin permissions of sorts. Ensure you have this before setting this as the whole process will fail if permissions are not set. Default: \"private\"."
-    required: false
+  openstack-security-group:
+    description: "The security group in OpenStack to assign to the VM that will build the image - requires SSH access."
+    default: "default"
+  openstack-image-visibility:
+    description: "Set the image visibility once it has been created. Usually required admin permissions of sorts. Ensure you have this before setting this as the whole process will fail if permissions are not set."
     default: "private"
-  crictl-version:
-    description: 'The crictl version to deploy into the image. Default: \"1.25.\".'
-    required: false
-    default: "1.25.0"
-  k8s-version:
-    description: 'The Kubernetes version to deploy into the image. Default: \"1.25.3\".'
-    required: false
-    default: "1.25.3"
-  cni-version:
-    description: 'The Kubernetes CNI version to deploy into the image. Default: \"1.2.0\".'
-    required: false
-    default: "1.2.0"
-  extra-debs:
-    description: 'A space-separated list of any additional (Debian / Ubuntu) packages to install.  Default is no extra packages.'
-    required: false
-    default: ""
-  enable-nvidia-support:
-    description: "Set to enable Nvidia support. You must have valid a license and location to install the .run file from to use this. You'll also need an instance with a GPU added to build the GPU drivers. Default: \"false\"."
-    required: false
-    default: "false"
-  nvidia-driver-version:
-    description: "The NVIDIA Driver version you are installing. This is currently only used to set the image name. Default: \"525.85.05\"."
-    required: false
-    default: "525.85.05"
-  nvidia-bucket-endpoint:
-    description: "The endpoint of the bucket from which to download the NVIDIA components."
-    required: false
-    default: ""
-  nvidia-bucket-name:
-    description: "The bucket name that the NVIDIA components are uploaded to."
-    required: false
-    default: ""
-  nvidia-bucket-access:
-    description: "The access key used to access the bucket from which to download the NVIDIA components."
-    required: false
-    default: ""
-  nvidia-bucket-secret:
-    description: "The secret key used to access the bucket from which to download the NVIDIA components."
-    required: false
-    default: ""
-  nvidia-installer-location:
-    description: "The NVIDIA installer location in the bucket - this must be acquired from NVIDIA and uploaded to your bucket."
-    required: false
-    default: ""
-  nvidia-tok-location:
-    description: "The NVIDIA .tok file location in the bucket - this must be acquired from NVIDIA and uploaded to your bucket."
-    required: false
-    default: ""
-  gridd-feature-type:
-    description: "The gridd feature type - See https://docs.nvidia.com/license-system/latest/nvidia-license-system-quick-start-guide/index.html#configuring-nls-licensed-client-on-linux for more information."
-    required: false
-    default: ""
-  image-disk-format:
-    description: "The format of the image on Openstack. Your openstack instance must support this."
-    required: false
+  openstack-image-disk-format:
+    description: "The format of the image on OpenStack. Your openstack instance must support this."
     default: "raw"
-  volume-type:
-    description: "The volume type to use in Openstack."
-    required: false
-    default: ""
-  rootfs-uuid:
-    description: "The uuid of the root filesystem. Useful when booting bare metal machines in Openstack."
-    required: false
-    default: ""
-  auto-delete-image:
-    description: "Whether to delete the create image should a CVE check fail."
-    required: false
-    default: "true"
-  skip-cve-check:
-    description: "Whether to run a CVE check after the scan runs. This will cause a pipeline to fail if a vulnerability is found and meets the threshold defined in the two options below."
-    required: false
+  openstack-use-blockstorage-volume:
+    description: "Sets the parameter block_storage_volume in the OpenStack Packer config."
     default: "false"
-  max-severity-score:
-    description: "The severity of CVE to check for. 0.1 - 10.0"
-    required: false
-    default: "7.0"
-  max-severity-type:
-    description: "The type of CVE Severity to check for. NONE, LOW, MEDIUM, HIGH and CRITICAL are supported."
-    required: false
+  openstack-ssh-keypair-name:
+    description: "Use an existing SSH KeyPair from OpenStack - one will be autogenerated if not set."
+  openstack-ssh-privatekey-file:
+    description: "If using a ssh-keypair-name, a private key is required. In an automation environment, this is not recommended due to the potential exposure of a key."
+  openstack-volume-type:
+    description: "The volume type to use in OpenStack."
+    default: ""
+  openstack-volume-size:
+    description: "The size of the storage volume in OpenStack."
+    default: ""
+  openstack-metadata-prefix:
+    description: "Metadata-prefix will be used to prefix any metadata. This can be left blank if not required but if your metadata requires a prefix like `baski:k8s-version`, this is the place to add it."
+  # KubeVirt - currently not supported by the action
+  #  kubevirt-qemu-binary:
+  #    description: "qemu_binary enables the overriding of the qemu-system-x86_64 binary name"
+  #    default: "qemu-system-x86_64"
+  #  kubevirt-disk-size:
+  #    description: "Describes the size of the VM disk"
+  #    default: "10G"
+  #  kubevirt-output-directory:
+  #    description: "The directory in which the resulting QCOW2 image will be stored."
+  #  kubevirt-store-in-s3:
+  #    description: "This enables the image to be uploaded to an S3 endpoint as defined in S3 variables"
+  #  kubevirt-image-bucket:
+  #    description: "The bucket in which to store the resulting image (required if S3 is used)"
+  #  kubevirt-image-namespace:
+  #    description: "The namespace in which the DV will be created"
+  # K8S
+  k8s-kubeconfig-path:
+    description: "Path to the kubeconfig that will be used to generate the PVC for Kubevirt"
+  # S3
+  s3-endpoint:
+    description: "The endpoint of S3."
+  s3-access:
+    description: "The access key used to access S3s."
+  s3-secret:
+    description: "The secret key used to access S3."
+  s3-region:
+    description: "The S3 region."
+    default: "us-east-1"
+  s3-is-ceph:
+    description: "If the S3 endpoint is ceph based, for example behind OpenStack, this should be set to true."
+  # Build
+  build-verbose:
+    description: "Enables verbose mode."
+    default: "false"
+  build-os:
+    description: "The OS to build. Currently supports ubuntu-2204 and ubuntu-2404."
+    default: "ubuntu-2204"
+  build-image-prefix:
+    description: "The prefix to apply to the image name."
+  build-image-builder-repo:
+    description: "The to use for building Kubernetes images."
+    default: "https://github.com/kubernetes-sigs/image-builder.git"
+  build-image-builder-repo-branch:
+    description: "The branch to use fir iamge builds."
+    default: "main"
+  build-containerd-version:
+    description: 'The containerd version to deploy into the image.'
+    default: "1.7.21"
+  build-containerd-sha256:
+    description: 'The sha256 of containerd.'
+    default: "3d1fcdfd0b141f4dc4916b7aee7f9a7773dc344baffc8954e1ca66b1adc5c120"
+  build-crictl-version:
+    description: 'The crictl version to deploy into the image.'
+    default: "1.30.1"
+  build-cni-version:
+    description: 'The CNI version to deploy into the image.'
+    default: "1.2.0"
+  build-cni-deb-version:
+    description: 'The CNI .DEB version to deploy into the image.'
+    default: "1.4.0-2.1"
+  build-k8s-version:
+    description: 'The Kubernetes version to deploy into the image.'
+    default: "1.30.4"
+  build-k8s-deb-version:
+    description: 'The Kubernetes .DEB version to deploy into the image.'
+    default: "1.30.4-1.1"
+  build-extra-debs:
+    description: 'A space-separated list of any additional (Debian / Ubuntu) packages to install.'
+  build-add-trivy:
+    description: 'Install Trivy into the image.'
+    default: "false"
+  build-add-falco:
+    description: 'Install Falco into the image.'
+    default: "false"
+  build-additional-images:
+    description: "A comma delimited list of container images that should be added to the final image."
+  build-additional-metadata:
+    description: "A comma delimited list of metadata that should be added to the image."
+  # GPU
+  build-enable-gpu-support:
+    description: "Enable the installation of GPU drivers - requires additional settings."
+    default: "false"
+  build-gpu-vendor:
+    description: "Set the GPU vendor to install the correct drivers. AMD/NVIDIA."
+  build-gpu-model-support:
+    description: "The specified GPU model is added to the metadata of the image."
+  build-gpu-instance-support:
+    description: "The specified instance type is added to the image metadata."
+  build-amd-driver-version:
+    description: "The AMD driver version to install."
+  build-amd-driver-deb-version:
+    description: "The AMD .DEB version of the driver to install."
+  build-amd-usecase:
+    description: "dkms"
+  build-nvidia-driver-version:
+    description: "The NVIDIA Driver version you are installing. This is currently only used to set the image name."
+  build-nvidia-bucket:
+    description: "The bucket name that the NVIDIA components are downloaded from."
+  build-nvidia-installer-location:
+    description: "The NVIDIA installer location in the bucket - this must be acquired from NVIDIA and uploaded to your bucket."
+  build-nvidia-tok-location:
+    description: "The NVIDIA .tok file location in the bucket - this must be acquired from NVIDIA and uploaded to your bucket."
+  build-nvidia-gridd-feature-type:
+    description: "The gridd feature type - See https://docs.nvidia.com/license-system/latest/nvidia-license-system-quick-start-guide/index.html#configuring-nls-licensed-client-on-linux for more information."
+    default: "4"
+  # Scan
+  scan-type:
+    description: "Define the scan type. single or multiple"
+    default: "single"
+  scan-single-image-id:
+    description: "If scanning a single image, enter the Id of it here."
+  scan-multiple-image-search:
+    description: "The search prefix to locate images."
+    default: "kmi-"
+  scan-multiple-concurrency:
+    description: "How many concurrent scans to run."
+    default: "2"
+  scan-flavor-name:
+    description: "The instance flavor to use to scan the image."
+  scan-auto-delete-image:
+    description: "Whether to delete the image should a CVE check fail."
+    default: "false"
+  scan-skip-cve-check:
+    description: "Whether to run a CVE check after the scan runs. This will cause a pipeline to fail if a vulnerability is found and meets the threshold defined in the two options below."
+    default: "false"
+  scan-min-severity-type:
+    description: "The type of CVE Severity to check for. NONE, LOW, MEDIUM, HIGH and CRITICAL are supported. The value entered here is the minimum it will check for along with anything higher."
     default: "MEDIUM"
-  vault-addr:
+  scan-bucket:
+    description: "The bucket used to locate a trivyignore file."
+  scan-trivyignore-path:
+    description: "The path in the bucket where the trivyignore file is located."
+  scan-trivyignore-filename:
+    description: "The name of the trivyignore file in the bucket."
+    default: "trivyignore"
+  scan-trivyignore-list:
+    description: "A comma delimited list of CVEs to ignore. This will be appended to the trivyignore file from the scan bucket if one is provided."
+  sign-vault-url:
     description: "The endpoint address of vault from which the keys will be pulled for signing the image."
-    required: false
     default: ""
-  vault-token:
+  sign-vault-token:
     description: "The token for accessing vault."
-    required: false
     default: ""
-  gh-token:
-    description: "The GitHub project token to which the results can be pushed to for a GitHub Pages support."
-    required: true
-  gh-account:
-    description: "The GitHub account in which the GitHub pages branch/project is. Useful if it lives in a repo you don't own - IE an org one. Defaults to username"
-    required: false
-  gh-pages-branch:
-    description: "The branch in which the results should be pushed. Default: \"gh-pages\"."
-    required: false
-    default: "gh-pages"
+  sign-vault-mount-path:
+    description: "The mount path in vault which contains the secret with the signing key."
+    default: ""
+  sign-vault-secret-name:
+    description: "The name of the secret in the mount path that contains the signing key."
+    default: ""
+  sign-image-id:
+    description: "The ID of the image to sign."
+    default: ""
 runs:
   using: "composite"
   steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
     - name: "Setup the clouds.yaml file"
       id: prepare_cloud
       shell: bash
-      run: |
-        mkdir -p ~/.config/openstack/
-        export APP_CRED_ID=${{ inputs.os-application-credential-id }}
-        export APP_CRED_SECRET=${{ inputs.os-application-credential-secret }}
-        
-        if [[ -z $APP_CRED_ID ]] || [[ -z $APP_CRED_SECRET ]]; then
-          cat <<-EOF > ~/.config/openstack/clouds.yaml
-          clouds:
-            openstack:
-              auth:
-                auth_url: "${{ inputs.os-auth-url }}"
-                username: "${{ inputs.os-username }}"
-                password: "${{ inputs.os-password }}"
-                project_id: "${{ inputs.os-project-id }}"
-                project_name: "${{ inputs.os-project-name }}"
-                user_domain_name: "${{ inputs.os-user-domain-name }}"
-              region_name: "${{ inputs.os-region-name }}"
-              interface: "${{ inputs.os-interface }}"
-              identity_api_version: ${{ inputs.os-identity-api-version }}
-        EOF
-        else
-          cat <<-EOF > ~/.config/openstack/clouds.yaml
-          clouds:
-            openstack:
-              auth:
-                auth_url: "${{ inputs.os-auth-url }}"
-                application_credential_id: "${{ inputs.os-application-credential-id }}"
-                application_credential_secret: "${{ inputs.os-application-credential-secret }}"
-              region_name: "${{ inputs.os-region-name }}"
-              interface: " ${{ inputs.os-interface }}"
-              identity_api_version: ${{ inputs.os-identity-api-version }}
-              auth_type: "v3applicationcredential"
-        EOF
-        fi
+      run: ${{github.action_path}}/scripts/determine-infra-type.sh
+      env:
+        INFRA_TYPE: "${{ inputs.infra-type }}"
+        OS_URL: "${{ inputs.openstack-auth-url }}"
+        OS_USER: "${{ inputs.openstack-username }}"
+        OS_PASSWD: "${{ inputs.openstack-password }}"
+        OS_APP_ID: "${{ inputs.openstack-application-credential-id }}"
+        OS_APP_SECRET: "${{ inputs.openstack-application-credential-secret }}"
+        OS_REGION: "${{ inputs.openstack-region }}"
+        OS_INTERFACE: "${{ inputs.openstack-interface }}"
+        OS_PROJ_ID: "${{ inputs.openstack-project-id }}"
+        OS_PROJ_NAME: "${{ inputs.openstack-project-name }}"
+        OS_USR_DOM: "${{ inputs.openstack-user-domain-name }}"
+        OS_API: "${{ inputs.openstack-identity-api-version }}"
+
     - name: "Fetch Baski"
       if: runner.os == 'Linux'
       id: fetch_baski
       env:
-        BASKI_VERSION: "v0.0.5-beta.1"
-      run: |
-        wget -q https://github.com/eschercloudai/baski/releases/download/${BASKI_VERSION}/baski-linux-amd64 -O baski
-        chmod +x baski
+        BASKI_VERSION: "v1.2.2"
       shell: bash
+      run: ${{github.action_path}}/scripts/baski.sh update
+
+
     - name: "Build Image"
-      if: runner.os == 'Linux'
+      if: ${{ runner.os == 'Linux' && (inputs.task-type == 'all' || inputs.task-type == 'build') }}
       id: build
-      run: |
-        cat <<-EOF > /tmp/baski.yaml
-        clouds-file: "~/.config/openstack/clouds.yaml"
-        cloud-name: "openstack"
-        build:
-          verbose: true
-          build-os: "${{ inputs.build-os }}"
-          image-prefix: "${{ inputs.image-prefix }}
-          image-repo:  "${{ inputs.image-repo }}"
-          network-id: "${{ inputs.network-id }}"
-          source-image: "${{ inputs.source-image-id }}"
-          flavor-name: "${{ inputs.flavor-name }}"
-          use-floating-ip: "${{ inputs.use-floating-ip }}"
-          floating-ip-network-name: "${{ inputs.floating-ip-network-name }}"
-          attach-config-drive: ${{ inputs.attach-config-drive }}
-          image-visibility: "${{ inputs.image-visibility }}"
-          crictl-version: "${{ inputs.crictl-version }}"
-          cni-version: "${{ inputs.cni-version }}"
-          kubernetes-version: "${{ inputs.k8s-version }}"
-          extra-debs: "${{ inputs.extra-debs }}"
-          enable-nvidia-support: ${{ inputs.enable-nvidia-support }}
-          nvidia-driver-version: "${{ inputs.nvidia-driver-version }}"
-          nvidia-bucket-endpoint: "${{ inputs.nvidia-bucket-endpoint }}"
-          nvidia-bucket-name: "${{ inputs.nvidia-bucket-name }}"
-          nvidia-bucket-access: "${{ inputs.nvidia-bucket-access }}"
-          nvidia-bucket-secret: "${{ inputs.nvidia-bucket-secret }}"
-          nvidia-installer-location: "${{ inputs.nvidia-installer-location }}"
-          nvidia-tok-location: "${{ inputs.nvidia-tok-location }}"
-          gridd-feature-type: ${{ inputs.gridd-feature-type }}
-          image-disk-format: "${{ inputs.image-disk-format }}"
-          volume-type: "${{ inputs.volume-type }}"
-          rootfs-uuid: "${{ inputs.rootfs-uuid }}"
-        EOF
-        ./baski build
-        echo "new-image-id=$(cat /tmp/imgid.out)" >> $GITHUB_OUTPUT
       shell: bash
+      run: ${{github.action_path}}/scripts/baski.sh build
+      env:
+        INFRA_TYPE: "${{ inputs.infra-type }}"
+        S3_ENDPOINT: "${{ inputs.s3-endpoint }}"
+        S3_ACCESS: "${{ inputs.s3-access }}"
+        S3_SECRET: "${{ inputs.s3-secret }}"
+        S3_REGION: "${{ inputs.s3-region }}"
+        S3_IS_CEPH: "${{ inputs.s3-is-ceph }}"
+        OS_NET_ID: "${{ inputs.openstack-network-id }}"
+        OS_CONF_DRIVE: "${{ inputs.openstack-attach-config-drive }}"
+        OS_FIP_NET: "${{ inputs.openstack-floating-ip-network-name }}"
+        OS_SECURITY_GROUP: "${{ inputs.openstack-security-group }}"
+        OS_FLAVOR: "${{ inputs.openstack-flavor-name }}"
+        OS_SOURCE_IMAGE: "${{ inputs.openstack-source-image-id }}"
+        OS_USE_FIP: "${{ inputs.openstack-use-floating-ip }}"
+        OS_VISIBILITY: "${{ inputs.openstack-image-visibility }}"
+        OS_DISK_FORMAT: "${{ inputs.openstack-image-disk-format }}"
+        OS_VOL_TYPE: "${{ inputs.openstack-volume-type }}"
+        OS_VOL_SIZE: "${{ inputs.openstack-volume-size }}"
+        OS_USE_BLOCK: "${{ inputs.openstack-use-blockstorage-volume }}"
+        OS_META_PREFIX: "${{ inputs.openstack-metadata-prefix }}"
+        BUILD_VERBOSE: "${{ inputs.build-verbose }}"
+        BUILD_OS: "${{ inputs.build-os }}"
+        BUILD_PREFIX: "${{ inputs.build-image-prefix }}"
+        BUILD_REPO: "${{ inputs.build-image-builder-repo }}"
+        BUILD_REPO_BRANCH: "${{ inputs.build-image-builder-repo-branch }}"
+        BUILD_CONTAINERD_VERS: "${{ inputs.build-containerd-version }}"
+        BUILD_CONTAINERD_SHA256: "${{ inputs.build-containerd-sha256 }}"
+        BUILD_CRI_VERS: "${{ inputs.build-crictl-version }}"
+        BUILD_CNI_VERS: "${{ inputs.build-cni-version }}"
+        BUILD_CNI_DEB_VERS: "${{ inputs.build-cni-deb-version }}"
+        BUILD_K8S_VERS: "${{ inputs.build-k8s-version }}"
+        BUILD_K8S_DEB_VERS: "${{ inputs.build-k8s-deb-version }}"
+        BUILD_EXTRA_DEBS: "${{ inputs.build-extra-debs }}"
+        BUILD_TRIVY: "${{ inputs.build-add-trivy }}"
+        BUILD_FALCO: "${{ inputs.build-add-falco }}"
+        BUILD_ADDITIONAL_IMAGES: "${{ inputs.build-additional-images }}"
+        BUILD_ADDITIONAL_META: "${{ inputs.build-additional-metadata }}"
+        GPU_ENABLE: "${{ inputs.build-enable-gpu-support }}"
+        GPU_VENDOR: "${{ inputs.build-gpu-vendor }}"
+        GPU_MODEL: "${{ inputs.build-gpu-model-support }}"
+        GPU_INSTANCE: "${{ inputs.build-gpu-instance-support }}"
+        GPU_AMD_DRIVER_VERS: "${{ inputs.build-amd-driver-version }}"
+        GPU_AMD_DRIVER_DEB_VERS: "${{ inputs.build-amd-driver-deb-version }}"
+        GPU_AMD_USECASE: "${{ inputs.build-amd-usecase }}"
+        GPU_NVIDIA_DRIVER_VERS: "${{ inputs.build-nvidia-driver-version }}"
+        GPU_NVIDIA_BUCKET: "${{ inputs.build-nvidia-bucket }}"
+        GPU_NVIDIA_INSTALLER: "${{ inputs.build-nvidia-installer-location }}"
+        GPU_NVIDIA_TOK: "${{ inputs.build-nvidia-tok-location }}"
+        GPU_NVIDIA_GRIDD: "${{ inputs.build-nvidia-gridd-feature-type }}"
+
+    - name: "Get image ID for scanning"
+      if: ${{ runner.os == 'Linux' && (inputs.task-type == 'all' || inputs.task-type == 'scan') }}
+      id: scan-img
+      shell: bash
+      run: |
+        declare IMG_ID 
+        if [[ ${{ inputs.task-type }} == *"build"* ]] || [[ ${{ inputs.task-type }} == "all" ]]; then
+          # If the task-type contains build or is all, then it should have an outputted ID from the build step.
+          IMG_ID="${{ steps.build.outputs.new-image-id }}"
+        elif [[ ${{ inputs.task-type }} != *"build"* ]] && [[ ${{ inputs.task-type }} != "all" ]]; then
+          # Else if the task is not all or does not contain the build keyword, we'll take the scan-image-id
+          IMG_ID="${{ inputs.scan-single-image-id }}"
+        fi
+        echo "image-id=${IMG_ID}" >> $GITHUB_OUTPUT
 
     - name: "Scan Image"
-      if: runner.os == 'Linux'
+      if: ${{ runner.os == 'Linux' && (inputs.task-type == 'all' || inputs.task-type == 'scan') }}
       id: scan
-      run: |
-        cat <<-EOF > /tmp/baski.yaml
-        clouds-file: "~/.config/openstack/clouds.yaml"
-        cloud-name: "openstack"
-        scan:
-          image-id: "${{ steps.build.outputs.new-image-id }}"
-          flavor-name: "${{ inputs.flavor-name }}"
-          network-id: "${{ inputs.network-id }}"
-          attach-config-drive: ${{ inputs.attach-config-drive }}
-          auto-delete-image: ${{ inputs.auto-delete-image }}
-          skip-cve-check: ${{ inputs.skip-cve-check }}
-          max-severity-score: ${{ inputs.max-severity-score }}
-          max-severity-type: ${{ inputs.max-severity-type }}
-        EOF
-        ./baski scan
       shell: bash
+      run: ${{github.action_path}}/scripts/baski.sh scan
+      env:
+        INFRA_TYPE: "${{ inputs.infra-type }}"
+        OS_NET_ID: "${{ inputs.openstack-network-id }}"
+        OS_CONF_DRIVE: "${{ inputs.openstack-attach-config-drive }}"
+        OS_FIP_NET: "${{ inputs.openstack-floating-ip-network-name }}"
+        OS_SECURITY_GROUP: "${{ inputs.openstack-security-group }}"
+        OS_META_PREFIX: "${{ inputs.openstack-metadata-prefix }}"
+        OS_FLAVOR: "${{ inputs.openstack-flavor-name }}"
+        S3_ENDPOINT: "${{ inputs.s3-endpoint }}"
+        S3_ACCESS: "${{ inputs.s3-access }}"
+        S3_SECRET: "${{ inputs.s3-secret }}"
+        S3_REGION: "${{ inputs.s3-region }}"
+        S3_IS_CEPH: "${{ inputs.s3-is-ceph }}"
+        SCAN_TYPE: "${{ inputs.scan-type }}"
+        SCAN_SINGLE_IMG_ID: "${{ steps.scan-img.outputs.image-id }}"
+        SCAN_MULTI_PREFIX: "${{ inputs.scan-multiple-image-search }}"
+        SCAN_MULTI_CONCURRENCY: "${{ inputs.scan-multiple-concurrency }}"
+        SCAN_FLAVOR: "${{ inputs.scan-flavor-name }}"
+        SCAN_AUTO_DELETE: "${{ inputs.scan-auto-delete-image }}"
+        SCAN_SKIP_CVE: "${{ inputs.scan-skip-cve-check }}"
+        SCAN_SEV: "${{ inputs.scan-min-severity-type }}"
+        SCAN_BUCKET: "${{ inputs.scan-bucket }}"
+        SCAN_TRIVY_PATH: "${{ inputs.scan-trivyignore-path }}"
+        SCAN_TRIVY_FILE: "${{ inputs.scan-trivyignore-filename}}"
+        SCAN_TRIVY_LIST: "${{ inputs.scan-trivyignore-list }}"
 
     # Upload the SBOM scan results
     - name: "Upload required fixes results upon scan fail"
-      uses: actions/upload-artifact@v3
-      if: ${{ failure() && steps.scan.conclusion == 'failure' }}
+      uses: actions/upload-artifact@v4
+      if: (success() || failure()) && (steps.scan.conclusion == 'success' || steps.scan.outcome == 'failure')
       with:
-        name: "required-fixes.json"
-        path: "/tmp/required-fixes.json"
+        name: "results.json"
+        path: "/tmp/${{ steps.scan-img.outputs.image-id }}.json"
+
+    - name: "Get image ID for signing"
+      if: ${{ runner.os == 'Linux' && (inputs.task-type == 'all' || inputs.task-type == 'sign') }}
+      id: sign-img
+      shell: bash
+      run: |
+        declare IMG_ID
+        if [[ ${{ inputs.task-type }} == *"build"* ]] || [[ ${{ inputs.task-type }} == "all" ]]; then
+        # If the task-type contains build or is all, then it should have an outputted ID from the build step.
+          IMG_ID="${{ steps.build.outputs.new-image-id }}"
+        elif [[ ${{ inputs.task-type }} != *"build"* ]] && [[ ${{ inputs.task-type }} != "all" ]]; then
+        # Else if the task is not all or does not contain the build keyword, we'll take the sign-image-id
+          IMG_ID="${{ inputs.sign-image-id }}"
+        fi
+        echo "image-id=${IMG_ID}" >> $GITHUB_OUTPUT
 
     - name: "Sign Image"
-      if: runner.os == 'Linux'
+      if: ${{ runner.os == 'Linux' && (inputs.task-type == 'all' || inputs.task-type == 'sign') }}
       id: sign
-      run: |
-        cat <<-EOF > /tmp/baski.yaml
-        clouds-file: "~/.config/openstack/clouds.yaml"
-        cloud-name: "openstack"
-        sign:
-          image-id: "${{ steps.build.outputs.new-image-id }}"
-          vault:
-            url: "${{ inputs.vault-addr }}"
-            token: "${{ inputs.vault-token }}"
-        EOF
-        ./baski sign image
       shell: bash
-
-    - name: "Publish Image"
-      if: runner.os == 'Linux'
-      id: publish
-      run: |
-        cat <<-EOF > /tmp/baski.yaml
-        clouds-file: "~/.config/openstack/clouds.yaml"
-        cloud-name: "openstack"
-        publish:
-          image-id: "${{ steps.build.outputs.new-image-id }}"
-          github:
-            user: $(cut -d '/' -f 1 <<< "$GITHUB_REPOSITORY")
-            project: $(cut -d '/' -f 2 <<< "$GITHUB_REPOSITORY")
-            account: "${{ inputs.gh-account }}"
-            token: "${{ inputs.gh-token }}"
-            pages-branch: "${{ inputs.gh-pages-branch }}"
-        EOF
-        ./baski publish
-      shell: bash
+      run: ${{github.action_path}}/scripts/baski.sh sign image
+      env:
+        INFRA_TYPE: "${{ inputs.infra-type }}"
+        SIGN_VAULT_URL: "${{ inputs.sign-vault-url }}"
+        SIGN_VAULT_TOKEN: "${{ inputs.sign-vault-token }}"
+        SIGN_VAULT_MOUNT: "${{ inputs.sign-vault-mount-path }}"
+        SIGN_VAULT_SECRET: "${{ inputs.sign-vault-secret-name }}"
+        SIGN_IMG_ID: "${{ steps.sign-img.outputs.image-id }}"
