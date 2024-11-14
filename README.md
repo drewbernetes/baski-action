@@ -17,26 +17,8 @@ When the baski configuration changes, there will be a new release of the action 
 
 ⚠️Currently in beta at the moment.
 
-# Prerequisites - OpenStack
-
-It is expected that you have a network and sufficient security groups in place to run this action.<br>
-The action will not create the network or security groups for you.
-
-For example:
-
-```
-openstack network create image-builder
-openstack subnet create image-builder --network image-builder --dhcp --dns-nameserver 1.1.1.1 --subnet-range 10.10.10.0/24 --allocation-pool start=10.10.10.10,end=10.10.10.200
-openstack router create image-builder --external-gateway public1
-openstack router add subnet image-builder image-builder
-
-OS_SG=$(openstack security group list -c ID -c Name -f json | jq '.[]|select(.Name == "default") | .ID')
-openstack security group rule create "${OS_SG}" --ingress --ethertype IPv4 --protocol TCP --dst-port 22 --remote-ip 0.0.0.0/0 --description "Allows SSH access"
-openstack security group rule create "${OS_SG}" --egress --ethertype IPv4 --protocol TCP --dst-port -1 --remote-ip 0.0.0.0/0 --description "Allows TCP Egress"
-openstack security group rule create "${OS_SG}" --egress --ethertype IPv4 --protocol UDP --dst-port -1 --remote-ip 0.0.0.0/0 --description "Allows UDP Egress"
-```
-
-You will also require a source image to reference for the build to succeed.
+# Prerequisites
+* [Openstack]()./docs/openstack.md
 
 
 # TODO
@@ -52,6 +34,12 @@ The scripts and documentation in this project are released under the [Apache v2 
 ```yaml
 - uses: <baski-action>@<v0.1.0>
   with:
+    task-type:
+    # Comma delimited list of Baski tasks to run. build, scan or sign are valid options - you can also use 'all' to signal all of the tasks.
+    #
+    # Required: false
+    # Default: all
+
     infra-type:
     # openstack is currently supported, kubevirt is in progress
     #
@@ -356,7 +344,7 @@ The scripts and documentation in this project are released under the [Apache v2 
     # Enable the installation of GPU drivers - requires additional settings.
     #
     # Required: false
-    # Default: ""
+    # Default: false
 
     build-gpu-vendor:
     # Set the GPU vendor to install the correct drivers. AMD/NVIDIA.
@@ -365,7 +353,7 @@ The scripts and documentation in this project are released under the [Apache v2 
     # Default: ""
 
     build-gpu-model-support:
-    # the specified GPU model is added to the metadata of the image.
+    # The specified GPU model is added to the metadata of the image.
     #
     # Required: false
     # Default: ""
@@ -398,7 +386,7 @@ The scripts and documentation in this project are released under the [Apache v2 
     # The NVIDIA Driver version you are installing. This is currently only used to set the image name.
     #
     # Required: false
-    # Default: 550.90.05
+    # Default: ""
 
     build-nvidia-bucket:
     # The bucket name that the NVIDIA components are downloaded from.
@@ -488,7 +476,7 @@ The scripts and documentation in this project are released under the [Apache v2 
     # The name of the trivyignore file in the bucket.
     #
     # Required: false
-    # Default: ""
+    # Default: trivyignore
 
     scan-trivyignore-list:
     # A comma delimited list of CVEs to ignore. This will be appended to the trivyignore file from the scan bucket if one is provided.
@@ -533,6 +521,7 @@ The scripts and documentation in this project are released under the [Apache v2 
 
 | name | description | required | default |
 | --- | --- | --- | --- |
+| `task-type` | <p>Comma delimited list of Baski tasks to run. build, scan or sign are valid options - you can also use 'all' to signal all of the tasks.</p> | `false` | `all` |
 | `infra-type` | <p>openstack is currently supported, kubevirt is in progress</p> | `true` | `openstack` |
 | `openstack-auth-url` | <p>The authentication endpoint of OpenStack to send requests to.</p> | `false` | `""` |
 | `openstack-username` | <p>The username to authenticate with - required if not using application credentials.</p> | `false` | `""` |
@@ -583,14 +572,14 @@ The scripts and documentation in this project are released under the [Apache v2 
 | `build-add-falco` | <p>Install Falco into the image.</p> | `false` | `false` |
 | `build-additional-images` | <p>A comma delimited list of container images that should be added to the final image.</p> | `false` | `""` |
 | `build-additional-metadata` | <p>A comma delimited list of metadata that should be added to the image.</p> | `false` | `""` |
-| `build-enable-gpu-support` | <p>Enable the installation of GPU drivers - requires additional settings.</p> | `false` | `""` |
+| `build-enable-gpu-support` | <p>Enable the installation of GPU drivers - requires additional settings.</p> | `false` | `false` |
 | `build-gpu-vendor` | <p>Set the GPU vendor to install the correct drivers. AMD/NVIDIA.</p> | `false` | `""` |
-| `build-gpu-model-support` | <p>the specified GPU model is added to the metadata of the image.</p> | `false` | `""` |
+| `build-gpu-model-support` | <p>The specified GPU model is added to the metadata of the image.</p> | `false` | `""` |
 | `build-gpu-instance-support` | <p>The specified instance type is added to the image metadata.</p> | `false` | `""` |
 | `build-amd-driver-version` | <p>The AMD driver version to install.</p> | `false` | `""` |
 | `build-amd-driver-deb-version` | <p>The AMD .DEB version of the driver to install.</p> | `false` | `""` |
 | `build-amd-usecase` | <p>dkms</p> | `false` | `""` |
-| `build-nvidia-driver-version` | <p>The NVIDIA Driver version you are installing. This is currently only used to set the image name.</p> | `false` | `550.90.05` |
+| `build-nvidia-driver-version` | <p>The NVIDIA Driver version you are installing. This is currently only used to set the image name.</p> | `false` | `""` |
 | `build-nvidia-bucket` | <p>The bucket name that the NVIDIA components are downloaded from.</p> | `false` | `""` |
 | `build-nvidia-installer-location` | <p>The NVIDIA installer location in the bucket - this must be acquired from NVIDIA and uploaded to your bucket.</p> | `false` | `""` |
 | `build-nvidia-tok-location` | <p>The NVIDIA .tok file location in the bucket - this must be acquired from NVIDIA and uploaded to your bucket.</p> | `false` | `""` |
@@ -605,7 +594,7 @@ The scripts and documentation in this project are released under the [Apache v2 
 | `scan-min-severity-type` | <p>The type of CVE Severity to check for. NONE, LOW, MEDIUM, HIGH and CRITICAL are supported. The value entered here is the minimum it will check for along with anything higher.</p> | `false` | `MEDIUM` |
 | `scan-bucket` | <p>The bucket used to locate a trivyignore file.</p> | `false` | `""` |
 | `scan-trivyignore-path` | <p>The path in the bucket where the trivyignore file is located.</p> | `false` | `""` |
-| `scan-trivyignore-filename` | <p>The name of the trivyignore file in the bucket.</p> | `false` | `""` |
+| `scan-trivyignore-filename` | <p>The name of the trivyignore file in the bucket.</p> | `false` | `trivyignore` |
 | `scan-trivyignore-list` | <p>A comma delimited list of CVEs to ignore. This will be appended to the trivyignore file from the scan bucket if one is provided.</p> | `false` | `""` |
 | `sign-vault-url` | <p>The endpoint address of vault from which the keys will be pulled for signing the image.</p> | `false` | `""` |
 | `sign-vault-token` | <p>The token for accessing vault.</p> | `false` | `""` |
@@ -615,5 +604,9 @@ The scripts and documentation in this project are released under the [Apache v2 
 <!-- action-docs-inputs source="action.yml" -->
 
 <!-- action-docs-outputs source="action.yml" -->
+## Outputs
 
+| name | description |
+| --- | --- |
+| `new-image-id` | <p>The image ID of the image that's been built</p> |
 <!-- action-docs-outputs source="action.yml" -->
