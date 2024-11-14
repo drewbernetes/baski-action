@@ -251,6 +251,10 @@ inputs:
   sign-image-id:
     description: "The ID of the image to sign."
     default: ""
+outputs:
+  new-image-id:
+    description: "The image ID of the image that's been built"
+    value: ${{ steps.build.outputs.new-image-id }}
 runs:
   using: "composite"
   steps:
