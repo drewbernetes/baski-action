@@ -20,6 +20,33 @@ When the baski configuration changes, there will be a new release of the action 
 # Prerequisites
 * [Openstack]()./docs/openstack.md
 
+## Update the Changelog
+  
+  Get yourself a GitHub access token with permissions to read the repository, if you don't already have one.
+  
+  ```shell
+  gh auth login
+  gh auth token
+  ```
+  
+  Run [git cliff](https://github.com/orhun/git-cliff/)
+  
+  ```
+  export GITHUB_TOKEN=<token> # You can also add this to your ~/.bashrc or ~/.zshrc etc
+  git cliff -o
+  ```
+  It's worth noting that `--bump` will update the changelog with what it thinks will be the next release. Make sure to check this and ensure your next tag matches this value.
+The rules are:
+  * The default is `patch`. Generally speaking this would bea  `fix`, `docs`, `chore` etc. (see [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/))
+  * If `feat:` exists in the commit, then a minor version increase will happen.
+  * If `BREAKING CHANGE:` exists in the commit, then it will be a major version bump.
+  * If `--bump` is not added, it will result in an `[unreleased]` changelog entry instead of a tagged one.
+  
+  Once tested and validated using your branch, get the next available tag by running the following command, and incrementing by one. e.g if this output `v0.1.31`, you should use v0.1.32.
+  
+  ```shell
+  git tag | sort -V | tail -n1
+  ```
 
 # TODO
 * Probably loads, but this will do for now!
@@ -35,7 +62,7 @@ The scripts and documentation in this project are released under the [Apache v2 
 - uses: <baski-action>@<v0.1.0>
   with:
     task-type:
-    # Comma delimited list of Baski tasks to run. build, scan or sign are valid options - you can also use 'all' to signal all of the tasks.
+    # Comma-delimited list of Baski tasks to run. build, scan or sign are valid options - you can also use 'all' to signal all of the tasks.
     #
     # Required: false
     # Default: all
@@ -236,7 +263,7 @@ The scripts and documentation in this project are released under the [Apache v2 
     # If the S3 endpoint is ceph based, for example behind OpenStack, this should be set to true.
     #
     # Required: false
-    # Default: ""
+    # Default: false
 
     build-verbose:
     # Enables verbose mode.
@@ -476,7 +503,7 @@ The scripts and documentation in this project are released under the [Apache v2 
     # The name of the trivyignore file in the bucket.
     #
     # Required: false
-    # Default: trivyignore
+    # Default: .trivyignore
 
     scan-trivyignore-list:
     # A comma delimited list of CVEs to ignore. This will be appended to the trivyignore file from the scan bucket if one is provided.
@@ -513,6 +540,12 @@ The scripts and documentation in this project are released under the [Apache v2 
     #
     # Required: false
     # Default: ""
+
+    sbom-output-file:
+    # The name of the file for SBOM results.
+    #
+    # Required: false
+    # Default: results.json
 ```
 <!-- action-docs-usage source="action.yml" project="<baski-action>" version="<v0.1.0>" -->
 
@@ -521,7 +554,7 @@ The scripts and documentation in this project are released under the [Apache v2 
 
 | name | description | required | default |
 | --- | --- | --- | --- |
-| `task-type` | <p>Comma delimited list of Baski tasks to run. build, scan or sign are valid options - you can also use 'all' to signal all of the tasks.</p> | `false` | `all` |
+| `task-type` | <p>Comma-delimited list of Baski tasks to run. build, scan or sign are valid options - you can also use 'all' to signal all of the tasks.</p> | `false` | `all` |
 | `infra-type` | <p>openstack is currently supported, kubevirt is in progress</p> | `true` | `openstack` |
 | `openstack-auth-url` | <p>The authentication endpoint of OpenStack to send requests to.</p> | `false` | `""` |
 | `openstack-username` | <p>The username to authenticate with - required if not using application credentials.</p> | `false` | `""` |
@@ -554,7 +587,7 @@ The scripts and documentation in this project are released under the [Apache v2 
 | `s3-access` | <p>The access key used to access S3s.</p> | `false` | `""` |
 | `s3-secret` | <p>The secret key used to access S3.</p> | `false` | `""` |
 | `s3-region` | <p>The S3 region.</p> | `false` | `us-east-1` |
-| `s3-is-ceph` | <p>If the S3 endpoint is ceph based, for example behind OpenStack, this should be set to true.</p> | `false` | `""` |
+| `s3-is-ceph` | <p>If the S3 endpoint is ceph based, for example behind OpenStack, this should be set to true.</p> | `false` | `false` |
 | `build-verbose` | <p>Enables verbose mode.</p> | `false` | `false` |
 | `build-os` | <p>The OS to build. Currently supports ubuntu-2204 and ubuntu-2404.</p> | `false` | `ubuntu-2204` |
 | `build-image-prefix` | <p>The prefix to apply to the image name.</p> | `false` | `""` |
@@ -594,13 +627,14 @@ The scripts and documentation in this project are released under the [Apache v2 
 | `scan-min-severity-type` | <p>The type of CVE Severity to check for. NONE, LOW, MEDIUM, HIGH and CRITICAL are supported. The value entered here is the minimum it will check for along with anything higher.</p> | `false` | `MEDIUM` |
 | `scan-bucket` | <p>The bucket used to locate a trivyignore file.</p> | `false` | `""` |
 | `scan-trivyignore-path` | <p>The path in the bucket where the trivyignore file is located.</p> | `false` | `""` |
-| `scan-trivyignore-filename` | <p>The name of the trivyignore file in the bucket.</p> | `false` | `trivyignore` |
+| `scan-trivyignore-filename` | <p>The name of the trivyignore file in the bucket.</p> | `false` | `.trivyignore` |
 | `scan-trivyignore-list` | <p>A comma delimited list of CVEs to ignore. This will be appended to the trivyignore file from the scan bucket if one is provided.</p> | `false` | `""` |
 | `sign-vault-url` | <p>The endpoint address of vault from which the keys will be pulled for signing the image.</p> | `false` | `""` |
 | `sign-vault-token` | <p>The token for accessing vault.</p> | `false` | `""` |
 | `sign-vault-mount-path` | <p>The mount path in vault which contains the secret with the signing key.</p> | `false` | `""` |
 | `sign-vault-secret-name` | <p>The name of the secret in the mount path that contains the signing key.</p> | `false` | `""` |
 | `sign-image-id` | <p>The ID of the image to sign.</p> | `false` | `""` |
+| `sbom-output-file` | <p>The name of the file for SBOM results.</p> | `false` | `results.json` |
 <!-- action-docs-inputs source="action.yml" -->
 
 <!-- action-docs-outputs source="action.yml" -->
