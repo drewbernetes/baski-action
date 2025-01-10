@@ -129,6 +129,7 @@ inputs:
     default: "us-east-1"
   s3-is-ceph:
     description: "If the S3 endpoint is ceph based, for example behind OpenStack, this should be set to true."
+    default: "false"
   # Build
   build-verbose:
     description: "Enables verbose mode."
@@ -233,7 +234,7 @@ inputs:
     description: "The path in the bucket where the trivyignore file is located."
   scan-trivyignore-filename:
     description: "The name of the trivyignore file in the bucket."
-    default: "trivyignore"
+    default: ".trivyignore"
   scan-trivyignore-list:
     description: "A comma delimited list of CVEs to ignore. This will be appended to the trivyignore file from the scan bucket if one is provided."
   sign-vault-url:
@@ -251,6 +252,9 @@ inputs:
   sign-image-id:
     description: "The ID of the image to sign."
     default: ""
+  sbom-output-file:
+    description: "The name of the file for SBOM results."
+    default: "results.json"
 outputs:
   new-image-id:
     description: "The image ID of the image that's been built"
@@ -282,8 +286,6 @@ runs:
     - name: "Fetch Baski"
       if: runner.os == 'Linux'
       id: fetch_baski
-      env:
-        BASKI_VERSION: "v1.2.2"
       shell: bash
       run: ${{github.action_path}}/scripts/baski.sh update
 
@@ -394,7 +396,7 @@ runs:
       uses: actions/upload-artifact@v4
       if: (success() || failure()) && (steps.scan.conclusion == 'success' || steps.scan.outcome == 'failure')
       with:
-        name: "results.json"
+        name: "${{ inputs.sbom-output-file }}"
         path: "/tmp/${{ steps.scan-img.outputs.image-id }}.json"
 
     - name: "Get image ID for signing"

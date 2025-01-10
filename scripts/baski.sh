@@ -1,17 +1,9 @@
-#!/bin/bash
-
-declare S3_REGION="us-east-1"
-declare S3_IS_CEPH=true
-declare BUILD_REPO_BRANCH="main"
-declare BUILD_TRIVY=false
-declare BUILD_FALCO=false
-declare GPU_ENABLE=false
-declare SCAN_TYPE="single"
-declare SCAN_AUTO_DELETE=false
-declare SCAN_TRIVY_FILE=".trivyignore"
+#!/usr/bin/env bash
 
 function update(){
   mkdir -p "${HOME}/bin"
+  # Pulls latest version by default
+  BASKI_VERSION=$(curl -sL https://api.github.com/repos/drewbernetes/baski/releases | jq -r ".[0].name")
   curl -LO https://github.com/drewbernetes/baski/releases/download/${BASKI_VERSION}/baski-linux-amd64
   mv baski-linux-amd64 "${HOME}/bin/baski"
   chmod +x "${HOME}/bin/baski"
