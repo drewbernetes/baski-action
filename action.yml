@@ -251,6 +251,9 @@ inputs:
   sign-image-id:
     description: "The ID of the image to sign."
     default: ""
+  sbom-output-file:
+    description: "The name of the file for SBOM results."
+    default: "results.json"
 outputs:
   new-image-id:
     description: "The image ID of the image that's been built"
@@ -282,8 +285,6 @@ runs:
     - name: "Fetch Baski"
       if: runner.os == 'Linux'
       id: fetch_baski
-      env:
-        BASKI_VERSION: "v1.2.2"
       shell: bash
       run: ${{github.action_path}}/scripts/baski.sh update
 
@@ -394,7 +395,7 @@ runs:
       uses: actions/upload-artifact@v4
       if: (success() || failure()) && (steps.scan.conclusion == 'success' || steps.scan.outcome == 'failure')
       with:
-        name: "results.json"
+        name: "${{ inputs.sbom-output-file }}"
         path: "/tmp/${{ steps.scan-img.outputs.image-id }}.json"
 
     - name: "Get image ID for signing"

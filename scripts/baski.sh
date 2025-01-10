@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 declare S3_REGION="us-east-1"
 declare S3_IS_CEPH=true
@@ -12,6 +12,8 @@ declare SCAN_TRIVY_FILE=".trivyignore"
 
 function update(){
   mkdir -p "${HOME}/bin"
+  # Pulls latest version by default
+  BASKI_VERSION=$(curl -sL https://api.github.com/repos/drewbernetes/baski/releases | jq -r ".[0].name")
   curl -LO https://github.com/drewbernetes/baski/releases/download/${BASKI_VERSION}/baski-linux-amd64
   mv baski-linux-amd64 "${HOME}/bin/baski"
   chmod +x "${HOME}/bin/baski"
